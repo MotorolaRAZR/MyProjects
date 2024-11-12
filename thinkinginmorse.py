@@ -7,6 +7,7 @@
 # Проверка на то есть ли ec_sys в прописке загрузки или нет
 import time  # импорт времени для замедления сигналов
 import subprocess  # для последующей загрузки модулей из ядра
+# import multiprocessing as mp
 
 
 def is_parameter_in_boot_option(param):
@@ -18,7 +19,7 @@ def is_parameter_in_boot_option(param):
     # но если файла нету выводим ошибку
     except FileNotFoundError:
         print(
-            "Файл /proc/cmdline не найден? Ты точно на линуксе?")
+            "Файл /proc/cmdline не найден. Ты точно на линуксе?")
         return False
         quit()  # закрываем программу так как она не на линуксе
 
@@ -41,11 +42,27 @@ def led(state):
     lampochka.seek(12)  # читаем 12-ую строчку в файле io
     if state:
         # x8a - статус включенной лампочки который видит линукс
-        lampochka.write(b"\x8a")
+        # b в начале - превращает в двоичный код
+        lampochka.write(b"\x8a")  # я не знаю что он обозначает
     else:
         lampochka.write(b"\x0a")  # x0a - наоборот
 
+    if state == "default":
+        lampochka.write(b"\x8a")
+
     lampochka.flush()  # чистим оперативную память
+
+
+# тут есть драйвера у линукса поэтому тут легче
+def led2(state):
+    # открываем файл и просим "дай нам написать пожалуйста"
+    lampochka = open("/proc/acpi/ibm/led", "w")
+    if state:
+        lampochka.write("0 on")  # включен
+    else:
+        lampochka.write("0 off")  # выключен
+    if state == "default":
+        lampochka.write("0 on")  # стандарт
 
 
 """while True:  # ради интереса сделал выбор в цикле который не закончится пока не будет ввод нуля или единицы
@@ -97,46 +114,81 @@ VREMYA_MEJDY_BYKVAMI = 3
 VREMYA_MEJDY_SLOVAMI = 5
 VREMYA_TSIKLA = 8
 
-strochka = input("введи на английском то что хочешь вывести на лампочку: ")
 
-
-# если после ентера нету пробела или деша то сделать задержку между буквами
 def zaderjka_mejdy_signalami():
     if strochka_morse[indicator+1] != " " and "/":
         time.sleep(zamedlitel * VREMYA_MEJDY_SIGNALAMI)
 
 
-if __name__ == "__main__":  # напрямую запускаем
+while True:
+    strochka = input("введи на английском то что хочешь вывести на лампочку: ")
+    led_choice = int(input("1 на крышке/2 кнопка питания: "))
+
     while True:
-        led(False)  # выключаем для последующих сигналов
-        strochka_morse = iz_texta_v_morse(strochka)
-        # убираем ентер в конце с помощью  [:-1]
-        for indicator, char in enumerate(strochka_morse[:-1]):
-            # char - символ dit(.) или dat(-)
-            if char == ".":
-                led(True)  # включаем лампу
-                # держим ее включенной с длинной времени для дит
-                time.sleep(zamedlitel * VREMYA_DIT)
-                led(False)  # выключаем
-                print(".", end="")  # выводим что напечатали в консоль
+        if led_choice == 1:
+            break
+        elif led_choice == 2:
+            break
+        else:
+            print("некорекктный вариант ответа")
+# если после ентера нету пробела или деша то сделать задержку между буквами
 
-                zaderjka_mejdy_signalami()
-            elif char == "-":
-                led(True)  # включаем лампу
-                # держим ее включенной с длинной времени для дах
-                time.sleep(zamedlitel * VREMYA_DAH)
-                led(False)  # выключаем
-                print("-", end="")  # выводим что напечатали в консоль
+    if __name__ == "__main__":  # напрямую запускаем
+        while True:
+            led(False)  # выключаем для последующих сигналов
+            strochka_morse = iz_texta_v_morse(strochka)
+            # убираем ентер в конце с помощью  [:-1]
+            for indicator, char in enumerate(strochka_morse[:-1]):
+                # char - символ dit(.) или dat(-)
+                if char == ".":
+                    if led_choice == 1:
+                        led(True)  # включаем лампу
+                    else:
+                        led2(True)
+                    # держим ее включенной с длинной времени для дит
+                    time.sleep(zamedlitel * VREMYA_DIT)
+                    if led_choice == 1:
+                        led(False)  # выключаем
+                    else:
+                        led2(False)
+                    print(".", end="")  # выводим что напечатали в консоль
 
-                zaderjka_mejdy_signalami()
-            elif char == " ":
-                # ставим пробел между буквами что-бы по желанию декодировать на сайте
-                print(" ", end="")
-                if strochka_morse[indicator + 1] != "/" and strochka_morse[indicator - 1] != "/":
-                    # ждем перед следующей буквой
-                    time.sleep(zamedlitel * VREMYA_MEJDY_BYKVAMI)
-            elif char == "/":
-                print(" / ", end="")  # ждем до нового слова
-                time.sleep(zamedlitel * VREMYA_MEJDY_SLOVAMI)
-        # time.sleep(zamedlitel * VREMYA_TSIKLA)
+                    zaderjka_mejdy_signalami()
+                elif char == "-":
+                    if led_choice == "1":
+                        led(True)  # включаем лампу
+                    else:
+                        led2(True)
+                    # держим ее включенной с длинной времени для дах
+                    time.sleep(zamedlitel * VREMYA_DAH)
+                    if led_choice == "1":
+                        led(False)  # выключаем
+                    else:
+                        led2(False)
+                    print("-", end="")  # выводим что напечатали в консоль
+
+                    zaderjka_mejdy_signalami()
+                elif char == " ":
+                    # ставим пробел между буквами что-бы по желанию декодировать на сайте
+                    print(" ", end="")
+                    if strochka_morse[indicator + 1] != "/" and strochka_morse[indicator - 1] != "/":
+                        # ждем перед следующей буквой
+                        time.sleep(zamedlitel * VREMYA_MEJDY_BYKVAMI)
+                elif char == "/":
+                    print(" / ", end="")  # ждем до нового слова
+                    time.sleep(zamedlitel * VREMYA_MEJDY_SLOVAMI)
+            # time.sleep(zamedlitel * VREMYA_TSIKLA) нету смысла
+            time.sleep(zamedlitel * VREMYA_TSIKLA)
+            if led_choice == "1":
+                led("default")
+            else:
+                led2("default")
+            break
+
+    continue_input = input("\nхочешь повторить? д/н: ")
+    if continue_input == "д" and "да":
+        pass
+    elif continue_input == "н" and "нет":
         break
+    else:
+        print("неправильный вариант ответа")
