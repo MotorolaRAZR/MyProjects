@@ -1,13 +1,9 @@
 #!/usr/bin/env python
-# Для создания алиаса что бы легче запустить
-
-# Сразу скажу что смотрел очень много в интернете, особенно где найти прописку лампочки на крышке экрана
-# А еще спасибо r/thinkpad и stackoverflow и chatgpt в проверке
-
 # Проверка на то есть ли ec_sys в прописке загрузки или нет
 import time  # импорт времени для замедления сигналов
 import subprocess  # для последующей загрузки модулей из ядра
 # import multiprocessing as mp
+import sys
 
 
 def is_parameter_in_boot_option(param):
@@ -41,16 +37,16 @@ def led(state):
     lampochka = open("/sys/kernel/debug/ec/ec0/io", "wb")
     lampochka.seek(12)  # читаем 12-ую строчку в файле io
     if state:
-        # x8a - статус включенной лампочки который видит линукс
+        # x8a - binary статус включенной лампочки который видит линукс
         # b в начале - превращает в двоичный код
-        lampochka.write(b"\x8a")  # я не знаю что он обозначает
+        lampochka.write(b"\x8a")  # включенный
     else:
         lampochka.write(b"\x0a")  # x0a - наоборот
 
     if state == "default":
         lampochka.write(b"\x8a")
 
-    lampochka.flush()  # чистим оперативную память
+    lampochka.flush()  # чистим оперативную память и сразу включаем
 
 
 # тут есть драйвера у линукса поэтому тут легче
@@ -94,10 +90,11 @@ MORSE_DICT = {'A': '.-', 'B': '-...',
 
 
 def iz_texta_v_morse(text):
-    cipher = ""  # создаем пустой список, потом его вернем и отправим на вывод к лампочке
+    cipher = ""  # создаем пустой список, потом его вернем с шифром и отправим на вывод к лампочке
+    # цикл включен пока не закончит перевод т.к for x in y
     for letter in text.upper():  # делаем капсы что бы совпало с списком
         if letter != " ":
-            # пробел между буквами чтобы легче раскодировать морзе letter - буква из списка, А к примеру
+            # пробел между буквами чтобы затем сделать по нему задержку между буквами
             cipher += MORSE_DICT[letter] + " "
         else:
             # символ пробела взят за деш в списке :shrug:
@@ -107,6 +104,8 @@ def iz_texta_v_morse(text):
 
 zamedlitel = 0.15  # чем меньше тем быстрее
 
+
+# прописи задержек в виде переменных
 VREMYA_DIT = 1  # вроде в секундах
 VREMYA_MEJDY_SIGNALAMI = 1
 VREMYA_DAH = 3
@@ -116,28 +115,28 @@ VREMYA_TSIKLA = 8
 
 
 def zaderjka_mejdy_signalami():
-    if strochka_morse[indicator+1] != " " and "/":
+    if strochka_morse[indicator+1] != [" ", "/"]:
         time.sleep(zamedlitel * VREMYA_MEJDY_SIGNALAMI)
 
 
 while True:
     strochka = input("введи на английском то что хочешь вывести на лампочку: ")
-    led_choice = int(input("1 на крышке/2 кнопка питания: "))
+    led_choice = int(input("выбери лампочку: 1 на крышке/2 кнопка питания: "))
 
     while True:
+        # если ответы правильные выключаем цикл
         if led_choice == 1:
             break
         elif led_choice == 2:
             break
         else:
             print("некорекктный вариант ответа")
-# если после ентера нету пробела или деша то сделать задержку между буквами
-
+    print("код морзе: ", end="")  # очень глупое решение но оно работает
     if __name__ == "__main__":  # напрямую запускаем
         while True:
             led(False)  # выключаем для последующих сигналов
             strochka_morse = iz_texta_v_morse(strochka)
-            # убираем ентер в конце с помощью  [:-1]
+            # убираем или \n или энтер в конце с помощью  [:-1], цикл включен пока полностью не выведет на лампочку
             for indicator, char in enumerate(strochka_morse[:-1]):
                 # char - символ dit(.) или dat(-)
                 if char == ".":
@@ -145,31 +144,31 @@ while True:
                         led(True)  # включаем лампу
                     else:
                         led2(True)
-                    # держим ее включенной с длинной времени для дит
+                    # держим ее включенной с длинной времени для dit
                     time.sleep(zamedlitel * VREMYA_DIT)
                     if led_choice == 1:
                         led(False)  # выключаем
                     else:
                         led2(False)
                     print(".", end="")  # выводим что напечатали в консоль
-
+                    sys.stdout.flush()  # сразу выводим, stdout - standart output - в нем находится буффер, с помощью flush() мы заставляем питон писать незаконченный буффер
                     zaderjka_mejdy_signalami()
                 elif char == "-":
                     if led_choice == "1":
                         led(True)  # включаем лампу
                     else:
                         led2(True)
-                    # держим ее включенной с длинной времени для дах
+                    # держим ее включенной с задержкой dah
                     time.sleep(zamedlitel * VREMYA_DAH)
                     if led_choice == "1":
                         led(False)  # выключаем
                     else:
                         led2(False)
                     print("-", end="")  # выводим что напечатали в консоль
-
+                    sys.stdout.flush()
                     zaderjka_mejdy_signalami()
                 elif char == " ":
-                    # ставим пробел между буквами что-бы по желанию декодировать на сайте
+                    # ставим пробел между буквами
                     print(" ", end="")
                     if strochka_morse[indicator + 1] != "/" and strochka_morse[indicator - 1] != "/":
                         # ждем перед следующей буквой
@@ -185,10 +184,14 @@ while True:
                 led2("default")
             break
 
-    continue_input = input("\nхочешь повторить? д/н: ")
-    if continue_input == "д" and "да":
-        pass
-    elif continue_input == "н" and "нет":
-        break
-    else:
-        print("неправильный вариант ответа")
+        # вопрос: продолжать код или нет? если ответ равен списку да д - продолжить если нет не - выключить, а если ничего из этих - неправильный вариант ответа
+        # strip() для удаления случайных пробелов и lower() для того что бы сделать списки проверки меньше
+        continue_input = input("\nхочешь повторить? д/н: ").strip().lower()
+        # не можем использовать if x == y and z т.к оно будет проверять только первую часть(y)
+        if continue_input in ["да", "д"]:
+            print('passed')
+            continue  # повторяем цикл
+        elif continue_input in ["нет", "н"]:
+            break  # выключаем цикл
+        else:
+            print("неправильный вариант ответа")
