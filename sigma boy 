@@ -1,0 +1,65 @@
+from datetime import datetime
+import sqlite3
+
+con = sqlite3.connect("klass1.db")
+cur = con.cursor()
+cur.execute("CREATE TABLE if not exists lesson(weekday, name, start, end)")
+
+cur.execute("""
+    INSERT INTO lesson VALUES(0 , "тест", "8:00", "8:40")
+""")
+con.commit()
+
+
+res = cur.execute("SELECT name, start, end FROM lesson")
+print(res.fetchall())
+
+def command_prompt():
+    def time_inp(tip="введи время: "):
+        inp = input(tip)
+        inp = filter(lambda x: x in '1234567890:', inp)
+        inp = ''.join(list(inp)[:5])
+        print(inp)
+        return inp
+
+    def name_inp():
+        inp = input("введи имя урока: ")
+        inp1 = filter(lambda x: x in ' йцукенгшщзхъфывапролджэячсмитьбю', inp.lower())
+        if len(inp)!=len(list(inp1)):
+            inp = None
+            inp = input("введи имя урока: ")
+        return inp
+
+    #name_inp() is None
+    res = cur.execute(f'SELECT name, start, end FROM lesson WHERE weekday={wd}')
+    command_inp = input("команда: ")
+    if command_inp == 'delete':
+        time_inp = time_inp()
+        cur.execute(f"""
+                       DELETE FROM lesson WHERE start = "{time_inp}" and weekday={wd}
+                   """)
+        con.commit()
+    if command_inp == 'add':
+        name = name_inp()
+        time_inp1 = time_inp("введи время начала: ")
+        time_inp2 = time_inp("введи время конца: ")
+        cur.execute(f"""
+            INSERT INTO lesson VALUES({wd}, "{name}", "{time_inp1}", "{time_inp2}")
+                    """)
+        con.commit()
+    if command_inp == "showschedule":
+        res = cur.execute("SELECT name, start, end FROM lesson")
+        print(res.fetchall())
+    return command_prompt()
+
+
+while True:
+    inp = input("stupid asking line!!!!!: ")
+    if inp == "schedule":
+        day_inp = input("введи название дня: ")
+        if day_inp == 'понедельник':
+            wd = 0
+            command_prompt()
+
+
+
