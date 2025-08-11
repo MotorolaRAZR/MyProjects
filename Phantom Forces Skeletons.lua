@@ -1,3 +1,4 @@
+-- this is heavily pasted
 local Drawings, Last = {}, 0
 
 ui.NewTab("PF", "PF")
@@ -230,3 +231,4 @@ cheat.Register("onUpdate", function()
 end)
 
 cheat.Register("onPaint", Render)
+
